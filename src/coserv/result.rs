@@ -66,11 +66,8 @@ impl Serialize for CoservResult<'_> {
             };
         }
         map.serialize_entry(&10, &self.expiry)?;
-        if self.source_artifacts.is_some() {
-            let wrapper_cmw: Vec<CmwCborRecordType> = self
-                .source_artifacts
-                .as_ref()
-                .unwrap()
+        if let Some(ref source_artifacts) = self.source_artifacts {
+            let wrapper_cmw: Vec<CmwCborRecordType> = source_artifacts
                 .iter()
                 .map(|x| CmwCborRecordType(Cow::Borrowed(x)))
                 .collect();
