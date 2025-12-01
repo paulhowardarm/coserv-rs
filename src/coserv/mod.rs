@@ -21,7 +21,7 @@
 //!
 //! ```rust
 //!use coserv_rs::coserv::{
-//!    ArtifactTypeChoice, Coserv, CoservBuilder, EnvironmentSelectorMap, Query, QueryBuilder,
+//!    ArtifactTypeChoice, Coserv, CoservBuilder, EnvironmentSelectorMap, CoservQuery, CoservQueryBuilder,
 //!    ResultTypeChoice, StatefulInstance, StatefulInstanceBuilder, CoservProfile,
 //!};
 //!
@@ -45,7 +45,7 @@
 //!    ];
 //!
 //!    // create query map
-//!    let query = QueryBuilder::new()
+//!    let query = CoservQueryBuilder::new()
 //!        .artifact_type(ArtifactTypeChoice::ReferenceValues)
 //!        .result_type(ResultTypeChoice::SourceArtifacts)
 //!        .environment_selector(EnvironmentSelectorMap::Instance(instances))
@@ -189,7 +189,7 @@ pub struct Coserv<'a> {
     /// CoSERV profile
     pub profile: CoservProfile,
     /// CoSERV query map
-    pub query: Query<'a>,
+    pub query: CoservQuery<'a>,
     /// optional CoSERV result map
     pub results: Option<CoservResult<'a>>,
 }
@@ -226,7 +226,7 @@ impl<'a> Coserv<'a> {
 #[derive(Debug, Default)]
 pub struct CoservBuilder<'a> {
     pub profile: Option<CoservProfile>,
-    pub query: Option<Query<'a>>,
+    pub query: Option<CoservQuery<'a>>,
     pub results: Option<CoservResult<'a>>,
 }
 
@@ -242,7 +242,7 @@ impl<'a> CoservBuilder<'a> {
     }
 
     /// Set the query
-    pub fn query(mut self, value: Query<'a>) -> Self {
+    pub fn query(mut self, value: CoservQuery<'a>) -> Self {
         self.query = Some(value);
         self
     }
@@ -312,7 +312,7 @@ impl<'de> Deserialize<'de> for Coserv<'_> {
                             builder = builder.profile(access.next_value::<CoservProfile>()?);
                         }
                         Some(1) => {
-                            builder = builder.query(access.next_value::<Query>()?);
+                            builder = builder.query(access.next_value::<CoservQuery>()?);
                         }
                         Some(2) => {
                             builder = builder.results(access.next_value::<CoservResult>()?);

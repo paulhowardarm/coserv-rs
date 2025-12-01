@@ -11,9 +11,9 @@ use std::fmt;
 use std::marker::PhantomData;
 
 /// Representation of CoSERV query map.
-/// Use [QueryBuilder] to build this struct.
+/// Use [CoservQueryBuilder] to build this struct.
 #[derive(Debug, PartialEq)]
-pub struct Query<'a> {
+pub struct CoservQuery<'a> {
     /// Query artifact type
     pub artifact_type: ArtifactTypeChoice,
     /// environment selector map
@@ -24,16 +24,16 @@ pub struct Query<'a> {
     pub result_type: ResultTypeChoice,
 }
 
-/// Builder for [Query]
+/// Builder for [CoservQuery]
 #[derive(Debug, Default)]
-pub struct QueryBuilder<'a> {
+pub struct CoservQueryBuilder<'a> {
     pub artifact_type: Option<ArtifactTypeChoice>,
     pub environment_selector: Option<EnvironmentSelectorMap<'a>>,
     pub timestamp: Option<TimeStamp>,
     pub result_type: Option<ResultTypeChoice>,
 }
 
-impl<'a> QueryBuilder<'a> {
+impl<'a> CoservQueryBuilder<'a> {
     pub fn new() -> Self {
         Self::default()
     }
@@ -60,8 +60,8 @@ impl<'a> QueryBuilder<'a> {
         self
     }
 
-    pub fn build(self) -> Result<Query<'a>, CoservError> {
-        Ok(Query {
+    pub fn build(self) -> Result<CoservQuery<'a>, CoservError> {
+        Ok(CoservQuery {
             artifact_type: self.artifact_type.ok_or(CoservError::RequiredFieldNotSet(
                 "artifact type".into(),
                 "query".into(),
@@ -78,7 +78,7 @@ impl<'a> QueryBuilder<'a> {
     }
 }
 
-impl Serialize for Query<'_> {
+impl Serialize for CoservQuery<'_> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
@@ -92,7 +92,7 @@ impl Serialize for Query<'_> {
     }
 }
 
-impl<'de> Deserialize<'de> for Query<'_> {
+impl<'de> Deserialize<'de> for CoservQuery<'_> {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
@@ -101,7 +101,7 @@ impl<'de> Deserialize<'de> for Query<'_> {
             marker: PhantomData<&'a str>,
         }
         impl<'de, 'a> Visitor<'de> for QueryVisitor<'a> {
-            type Value = Query<'a>;
+            type Value = CoservQuery<'a>;
 
             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
                 write!(formatter, "map containing CoSERV query (Query)")
@@ -111,7 +111,7 @@ impl<'de> Deserialize<'de> for Query<'_> {
             where
                 M: MapAccess<'de>,
             {
-                let mut builder = QueryBuilder::new();
+                let mut builder = CoservQueryBuilder::new();
                 loop {
                     match access.next_key::<i64>()? {
                         Some(0) => {
@@ -982,8 +982,8 @@ mod tests {
             name: Some("foo".into()),
             ..Default::default()
         };
-        let tests: Vec<(Query, Vec<u8>)> = vec![(
-            Query {
+        let tests: Vec<(CoservQuery, Vec<u8>)> = vec![(
+            CoservQuery {
                 artifact_type: ArtifactTypeChoice::ReferenceValues,
                 environment_selector: EnvironmentSelectorMap::Group(vec![
                     StatefulGroup {
@@ -1041,7 +1041,7 @@ mod tests {
             ciborium::into_writer(&value, &mut actual_cbor).unwrap();
             assert_eq!(*expected_cbor, actual_cbor, "ser at index {i}: {value:?}");
 
-            let value_de: Query = ciborium::from_reader(actual_cbor.as_slice()).unwrap();
+            let value_de: CoservQuery = ciborium::from_reader(actual_cbor.as_slice()).unwrap();
             assert_eq!(
                 *value, value_de,
                 "de at index {i}: {value:?} != {value_de:?}"
@@ -1049,7 +1049,7 @@ mod tests {
         }
 
         let cbor_invalid_key: Vec<u8> = vec![0xa1, 0x04, 0x80];
-        let err: Result<Query, _> = ciborium::from_reader(cbor_invalid_key.as_slice());
+        let err: Result<CoservQuery, _> = ciborium::from_reader(cbor_invalid_key.as_slice());
         assert!(err.is_err());
 
         let cbor_missing_timestamp: Vec<u8> = vec![
@@ -1078,7 +1078,7 @@ mod tests {
             0x03, // unsigned(3)
             0x00, // unsigned(0)
         ];
-        let err: Result<Query, _> = ciborium::from_reader(cbor_missing_timestamp.as_slice());
+        let err: Result<CoservQuery, _> = ciborium::from_reader(cbor_missing_timestamp.as_slice());
         assert!(err.is_err());
     }
 }
