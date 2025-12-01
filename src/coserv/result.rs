@@ -566,7 +566,7 @@ mod tests {
     #[test]
     fn test_cmw_wrapper() {
         let cmw = CMW::Monad(
-            Monad::new(
+            Monad::new_media_type(
                 Mime::from_str("application/vnd.example.refvals").unwrap(),
                 vec![0x01, 0x02, 0x03, 0x04],
                 None,
@@ -910,7 +910,7 @@ mod tests {
             ..Default::default()
         };
         let cmw = CMW::Monad(
-            Monad::new(
+            Monad::new_media_type(
                 Mime::from_str("application/vnd.example.refvals").unwrap(),
                 vec![0x01, 0x02, 0x03, 0x04],
                 None,
@@ -1072,7 +1072,7 @@ mod tests {
     #[test]
     fn test_coserv_result_builder() {
         let cmw = CMW::Monad(
-            Monad::new(
+            Monad::new_media_type(
                 Mime::from_str("application/vnd.example.refvals").unwrap(),
                 vec![0x01, 0x02, 0x03, 0x04],
                 None,
