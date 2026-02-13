@@ -10,6 +10,14 @@ pub enum CoservError {
     RequiredFieldNotSet(String, String),
     #[error("Cannot add {0} to result set of type {1}")]
     SetQuadsFailed(String, String),
+    #[error("Content type is not application/coserv+cbor")]
+    ContentTypeMismatch,
+    #[error("Unknown signature algorithm {0}")]
+    UnknownAlgorithm(i64),
+    #[error("Error signing CoSERV: {0}")]
+    SigningError(Box<dyn std::error::Error + 'static>),
+    #[error("Error verifying CoSERV: {0}")]
+    VerificationError(Box<dyn std::error::Error + 'static>),
     #[error("CoSERV error: {0}")]
     Custom(String),
 }

@@ -9,6 +9,8 @@
 //! - Representation of CoSERV
 //! - Serialization to CBOR or base64 encoded CBOR
 //! - Deserialization of CoSERV in CBOR or base64 encoded CBOR.
+//! - Signing of CoSERV objects.
+//! - Verification of signed CoSERV.
 //!
 //! CoSERV re-uses many definitions from CoRIM, hence these structures
 //! are directly used from <https://github.com/veraison/corim-rs>.
@@ -149,6 +151,180 @@
 //!    let response_cbor = response.to_cbor().unwrap();
 //!}
 //! ```
+//!
+//! Signing CoSERV using a user defined signer
+//!
+//! ```rust
+//!use corim_rs::CorimError;
+//!use coserv_rs::coserv::{CoseAlgorithm, CoseKey, CoseKeyOwner, CoseSigner, CoseVerifier, Coserv};
+//!
+//!struct FakeSigner {}
+//!
+//!impl CoseKeyOwner for FakeSigner {
+//!    fn to_cose_key(&self) -> CoseKey {
+//!        CoseKey::default()
+//!    }
+//!}
+//!
+//!impl CoseSigner for FakeSigner {
+//!    // implement signing
+//!    fn sign(&self, _alg: CoseAlgorithm, _data: &[u8]) -> Result<Vec<u8>, CorimError> {
+//!        Ok(vec![0x01, 0x02, 0x03])
+//!    }
+//!}
+//!
+//!impl CoseVerifier for FakeSigner {
+//!    // implement verification
+//!    fn verify_signature(
+//!        &self,
+//!        _alg: CoseAlgorithm,
+//!        _sig: &[u8],
+//!        _data: &[u8],
+//!    ) -> Result<(), CorimError> {
+//!        Ok(())
+//!    }
+//!}
+//!
+//!fn main() {
+//!    let coserv_response_cbor: Vec<u8> = vec![
+//!        0xa3, 0x00, 0x63, 0x66, 0x6f, 0x6f, 0x01, 0xa4, 0x00, 0x02, 0x01, 0xa1, 0x01, 0x82, 0x81,
+//!        0xd9, 0x02, 0x30, 0x43, 0x00, 0x01, 0x02, 0x81, 0xd9, 0x02, 0x30, 0x43, 0x01, 0x02, 0x03,
+//!        0x02, 0xc0, 0x78, 0x19, 0x32, 0x30, 0x32, 0x35, 0x2d, 0x31, 0x30, 0x2d, 0x32, 0x37, 0x54,
+//!        0x31, 0x39, 0x3a, 0x31, 0x31, 0x3a, 0x33, 0x30, 0x2b, 0x30, 0x35, 0x3a, 0x33, 0x30, 0x03,
+//!        0x01, 0x02, 0xa2, 0x00, 0x82, 0xa2, 0x01, 0x81, 0xd9, 0x02, 0x30, 0x42, 0x00, 0x01, 0x02,
+//!        0x82, 0xbf, 0x01, 0xd9, 0x02, 0x30, 0x43, 0x00, 0x01, 0x02, 0xff, 0x81, 0xbf, 0x01, 0xbf,
+//!        0x0b, 0x63, 0x66, 0x6f, 0x6f, 0xff, 0xff, 0xa2, 0x01, 0x81, 0xd9, 0x02, 0x30, 0x42, 0x00,
+//!        0x01, 0x02, 0x82, 0xbf, 0x01, 0xd9, 0x02, 0x30, 0x43, 0x01, 0x02, 0x03, 0xff, 0x81, 0xbf,
+//!        0x01, 0xbf, 0x0b, 0x63, 0x66, 0x6f, 0x6f, 0xff, 0xff, 0x0a, 0xc0, 0x78, 0x19, 0x32, 0x30,
+//!        0x32, 0x35, 0x2d, 0x31, 0x31, 0x2d, 0x32, 0x31, 0x54, 0x31, 0x36, 0x3a, 0x30, 0x38, 0x3a,
+//!        0x35, 0x36, 0x2b, 0x30, 0x35, 0x3a, 0x33, 0x30,
+//!    ];
+//!
+//!    // construct response like in previous example
+//!    let response = Coserv::from_cbor(coserv_response_cbor.as_slice()).unwrap();
+//!
+//!    let signer = FakeSigner {};
+//!    let signed_response = response.sign(&signer, CoseAlgorithm::ES256).unwrap();
+//!
+//!    let verifier = FakeSigner {};
+//!    let coserv =
+//!        Coserv::verify_and_extract(&verifier, signed_response.as_slice())
+//!            .unwrap();
+//!}
+//! ```
+//!
+//! By enabling the `openssl` feature, and implementation of
+//! `CoseSigner` and `CoseVerifier` using openssl becomes available.
+//! These are implemented by enabling `openssl` feature on corim-rs.
+//!
+//! ```ignore
+//!// enable `openssl' feature for an implementation of
+//!// CoseSigner and CoseVerifier using openssl
+//!use coserv_rs::coserv::{CoseAlgorithm, Coserv, OpensslSigner, OpensslVerifier};
+//!
+//!fn main() {
+//!    let coserv_response_cbor: Vec<u8> = vec![
+//!        0xa3, 0x00, 0x63, 0x66, 0x6f, 0x6f, 0x01, 0xa4, 0x00, 0x02, 0x01, 0xa1, 0x01, 0x82, 0x81,
+//!        0xd9, 0x02, 0x30, 0x43, 0x00, 0x01, 0x02, 0x81, 0xd9, 0x02, 0x30, 0x43, 0x01, 0x02, 0x03,
+//!        0x02, 0xc0, 0x78, 0x19, 0x32, 0x30, 0x32, 0x35, 0x2d, 0x31, 0x30, 0x2d, 0x32, 0x37, 0x54,
+//!        0x31, 0x39, 0x3a, 0x31, 0x31, 0x3a, 0x33, 0x30, 0x2b, 0x30, 0x35, 0x3a, 0x33, 0x30, 0x03,
+//!        0x01, 0x02, 0xa2, 0x00, 0x82, 0xa2, 0x01, 0x81, 0xd9, 0x02, 0x30, 0x42, 0x00, 0x01, 0x02,
+//!        0x82, 0xbf, 0x01, 0xd9, 0x02, 0x30, 0x43, 0x00, 0x01, 0x02, 0xff, 0x81, 0xbf, 0x01, 0xbf,
+//!        0x0b, 0x63, 0x66, 0x6f, 0x6f, 0xff, 0xff, 0xa2, 0x01, 0x81, 0xd9, 0x02, 0x30, 0x42, 0x00,
+//!        0x01, 0x02, 0x82, 0xbf, 0x01, 0xd9, 0x02, 0x30, 0x43, 0x01, 0x02, 0x03, 0xff, 0x81, 0xbf,
+//!        0x01, 0xbf, 0x0b, 0x63, 0x66, 0x6f, 0x6f, 0xff, 0xff, 0x0a, 0xc0, 0x78, 0x19, 0x32, 0x30,
+//!        0x32, 0x35, 0x2d, 0x31, 0x31, 0x2d, 0x32, 0x31, 0x54, 0x31, 0x36, 0x3a, 0x30, 0x38, 0x3a,
+//!        0x35, 0x36, 0x2b, 0x30, 0x35, 0x3a, 0x33, 0x30,
+//!    ];
+//!
+//!    let priv_pem = r#"
+//!-----BEGIN EC PRIVATE KEY-----
+//!MHcCAQEEIGcXyKllYJ/Ll0jUI9LfK/7uokvFibisW5lM8DZaRO+toAoGCCqGSM49
+//!AwEHoUQDQgAE/gPssLIiLnF0XrTGU73XMKlTIk4QhU80ttXzJ7waTpoeCJsPxG2h
+//!zMuUkHMOLrZxNpwxH004vyaHpF9TYTeXCQ==
+//!-----END EC PRIVATE KEY-----
+//!"#;
+//!    let pub_pem = r#"
+//!-----BEGIN PUBLIC KEY-----
+//!MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE/gPssLIiLnF0XrTGU73XMKlTIk4Q
+//!hU80ttXzJ7waTpoeCJsPxG2hzMuUkHMOLrZxNpwxH004vyaHpF9TYTeXCQ==
+//!-----END PUBLIC KEY-----
+//!"#;
+//!
+//!    // construct response like in previous example
+//!    let response = Coserv::from_cbor(coserv_response_cbor.as_slice()).unwrap();
+//!
+//!    // on the sender side
+//!    // sign the response
+//!    let signer = OpensslSigner::from_pem(priv_pem).unwrap();
+//!    let signed_response = response.sign(&signer, CoseAlgorithm::ES256).unwrap();
+//!
+//!    // on the receiver side:
+//!    // verify signature and extracting coserv
+//!    let verifier = OpensslVerifier::from_pem(pub_pem).unwrap();
+//!    let coserv =
+//!        Coserv::verify_and_extract(&verifier, signed_response.as_slice())
+//!            .unwrap();
+//!}
+//! ```
+//!
+//! Using JWK
+//!
+//! ```ignore
+//!// enable `openssl' feature for an implementation of
+//!// CoseSigner and CoseVerifier using openssl
+//!use coserv_rs::coserv::{CoseAlgorithm, Coserv, OpensslSigner, OpensslVerifier};
+//!
+//!fn main() {
+//!    let coserv_response_cbor: Vec<u8> = vec![
+//!        0xa3, 0x00, 0x63, 0x66, 0x6f, 0x6f, 0x01, 0xa4, 0x00, 0x02, 0x01, 0xa1, 0x01, 0x82, 0x81,
+//!        0xd9, 0x02, 0x30, 0x43, 0x00, 0x01, 0x02, 0x81, 0xd9, 0x02, 0x30, 0x43, 0x01, 0x02, 0x03,
+//!        0x02, 0xc0, 0x78, 0x19, 0x32, 0x30, 0x32, 0x35, 0x2d, 0x31, 0x30, 0x2d, 0x32, 0x37, 0x54,
+//!        0x31, 0x39, 0x3a, 0x31, 0x31, 0x3a, 0x33, 0x30, 0x2b, 0x30, 0x35, 0x3a, 0x33, 0x30, 0x03,
+//!        0x01, 0x02, 0xa2, 0x00, 0x82, 0xa2, 0x01, 0x81, 0xd9, 0x02, 0x30, 0x42, 0x00, 0x01, 0x02,
+//!        0x82, 0xbf, 0x01, 0xd9, 0x02, 0x30, 0x43, 0x00, 0x01, 0x02, 0xff, 0x81, 0xbf, 0x01, 0xbf,
+//!        0x0b, 0x63, 0x66, 0x6f, 0x6f, 0xff, 0xff, 0xa2, 0x01, 0x81, 0xd9, 0x02, 0x30, 0x42, 0x00,
+//!        0x01, 0x02, 0x82, 0xbf, 0x01, 0xd9, 0x02, 0x30, 0x43, 0x01, 0x02, 0x03, 0xff, 0x81, 0xbf,
+//!        0x01, 0xbf, 0x0b, 0x63, 0x66, 0x6f, 0x6f, 0xff, 0xff, 0x0a, 0xc0, 0x78, 0x19, 0x32, 0x30,
+//!        0x32, 0x35, 0x2d, 0x31, 0x31, 0x2d, 0x32, 0x31, 0x54, 0x31, 0x36, 0x3a, 0x30, 0x38, 0x3a,
+//!        0x35, 0x36, 0x2b, 0x30, 0x35, 0x3a, 0x33, 0x30,
+//!    ];
+//!
+//!    let priv_jwk = r#"
+//!{
+//!  "kty": "EC",
+//!  "crv": "P-256",
+//!  "alg": "ES256",
+//!  "d": "ZxfIqWVgn8uXSNQj0t8r_u6iS8WJuKxbmUzwNlpE760",
+//!  "x": "_gPssLIiLnF0XrTGU73XMKlTIk4QhU80ttXzJ7waTpo",
+//!  "y": "HgibD8RtoczLlJBzDi62cTacMR9NOL8mh6RfU2E3lwk"
+//!}
+//!"#;
+//!    let pub_jwk = r#"
+//!{
+//!  "kty": "EC",
+//!  "crv": "P-256",
+//!  "alg": "ES256",
+//!  "x": "_gPssLIiLnF0XrTGU73XMKlTIk4QhU80ttXzJ7waTpo",
+//!  "y": "HgibD8RtoczLlJBzDi62cTacMR9NOL8mh6RfU2E3lwk"
+//!}
+//!"#;
+//!
+//!    // construct response like in previous example
+//!    let response = Coserv::from_cbor(coserv_response_cbor.as_slice()).unwrap();
+//!
+//!    // on the sender side:
+//!    // sign the response
+//!    let signer = OpensslSigner::from_jwk(priv_jwk).unwrap();
+//!    let signed_response = response.sign(&signer, CoseAlgorithm::ES384).unwrap();
+//!
+//!    // on the receiver side:
+//!    // verify signature and extracting coserv
+//!    let verifier = OpensslVerifier::from_jwk(pub_jwk).unwrap();
+//!    let coserv =
+//!        Coserv::verify_and_extract(&verifier, signed_response.as_slice())
+//!            .unwrap();
+//!}
 
 use crate::error::CoservError;
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
@@ -160,6 +336,11 @@ use std::fmt;
 use std::io::Read;
 use std::marker::PhantomData;
 
+use coset::iana::EnumI64;
+use coset::{
+    AsCborValue, ContentType, CoseSign1, CoseSign1Builder, HeaderBuilder, TaggedCborSerializable,
+};
+
 // Contains structures used by both query and result
 mod common;
 
@@ -169,8 +350,14 @@ mod query;
 // data types used in CoSERV response
 mod result;
 
+// for signing and verification of CoSERV
+#[cfg(feature = "openssl")]
+mod openssl;
+
 // re-export to simplify the API
 pub use common::*;
+#[cfg(feature = "openssl")]
+pub use openssl::*;
 pub use query::*;
 pub use result::*;
 
@@ -182,6 +369,8 @@ pub use corim_rs;
 pub use corim_rs::ObjectIdentifier;
 
 pub use cmw;
+
+pub use corim_rs::{CoseAlgorithm, CoseKey, CoseKeyOwner, CoseSigner, CoseVerifier};
 
 /// Represents a CoSERV object
 #[derive(Debug, PartialEq)]
@@ -219,6 +408,93 @@ impl<'a> Coserv<'a> {
     pub fn from_b64_url(b64: &[u8]) -> Result<Self, CoservError> {
         let cbor = URL_SAFE_NO_PAD.decode(b64).map_err(CoservError::custom)?;
         Self::from_cbor(cbor.as_slice())
+    }
+
+    /// Signs and serializes CoSERV object to CBOR. Signed CoSERV is
+    /// a COSE_Sign1 object with tag 18, carrying CBOR encoded CoSERV payloadwith.
+    pub fn sign(
+        &self,
+        signer: &impl CoseSigner,
+        cose_alg: CoseAlgorithm,
+    ) -> Result<Vec<u8>, CoservError> {
+        let aad: &[u8] = &[];
+        let payload = self.to_cbor()?;
+        let protected = HeaderBuilder::new()
+            .algorithm(coset::iana::Algorithm::from_i64(cose_alg.into()).ok_or(
+                CoservError::SigningError(CoservError::UnknownAlgorithm(cose_alg.into()).into()),
+            )?)
+            .content_type("application/coserv+cbor".to_string())
+            .build();
+
+        let sign1_value = CoseSign1Builder::new()
+            .protected(protected)
+            .payload(payload)
+            .try_create_signature(aad, |pt| signer.sign(cose_alg, pt))
+            .map_err(|e| CoservError::SigningError(e.into()))?
+            .build()
+            .to_cbor_value()
+            .map_err(|e| CoservError::SigningError(e.into()))?;
+
+        let tagged_sign1_value = ciborium::value::Value::Tag(18, Box::new(sign1_value));
+        let mut buff: Vec<u8> = vec![];
+
+        ciborium::into_writer(&tagged_sign1_value, &mut buff).map_err(CoservError::custom)?;
+        Ok(buff)
+    }
+
+    /// Verifies the signature on the serialized signed CoSERV data
+    /// and creates a CoSERV object by deserializing the payload.
+    pub fn verify_and_extract(
+        verifier: &impl CoseVerifier,
+        data: &[u8],
+    ) -> Result<Self, CoservError> {
+        let sign1 = CoseSign1::from_tagged_slice(data).map_err(CoservError::custom)?;
+
+        // TODO: ContentType::Assigned variant, when CoAP
+        // content format id gets assigned
+        if let Some(ContentType::Text(ref cty)) = sign1.protected.header.content_type {
+            if cty != "application/coserv+cbor" {
+                Err(CoservError::ContentTypeMismatch)?;
+            }
+        } else {
+            Err(CoservError::VerificationError(
+                CoservError::RequiredFieldNotSet("cty".into(), "COSE header".into()).into(),
+            ))?
+        }
+
+        let Some(ref alg) = sign1.protected.header.alg else {
+            Err(CoservError::VerificationError(
+                CoservError::RequiredFieldNotSet("alg".into(), "COSE header".into()).into(),
+            ))?
+        };
+
+        let cose_alg = match alg {
+            coset::RegisteredLabelWithPrivate::Assigned(i) => {
+                Ok(CoseAlgorithm::try_from(i.to_i64())
+                    .map_err(|e| CoservError::VerificationError(e.into()))?)
+            }
+            coset::RegisteredLabelWithPrivate::PrivateUse(i) => Ok(CoseAlgorithm::try_from(*i)
+                .map_err(|e| CoservError::VerificationError(e.into()))?),
+            other => Err(CoservError::VerificationError(
+                CoservError::Custom(format!("unsupported algorithm in header: {other:?}")).into(),
+            )),
+        }?;
+
+        if sign1.payload.is_none() {
+            Err(CoservError::VerificationError(
+                CoservError::RequiredFieldNotSet("payload".into(), "COSE Sign1".into()).into(),
+            ))?
+        }
+
+        let aad: &[u8] = &[];
+
+        sign1
+            .verify_signature(aad, |sig, data| {
+                verifier.verify_signature(cose_alg, sig, data)
+            })
+            .map_err(|e| CoservError::VerificationError(e.into()))?;
+
+        Self::from_cbor(sign1.payload.unwrap().as_slice())
     }
 }
 
@@ -477,6 +753,57 @@ mod tests {
             let mut actual_cbor: Vec<u8> = vec![];
             ciborium::into_writer(&value, &mut actual_cbor).unwrap();
             assert_eq!(*expected_cbor, actual_cbor, "ser at index {i}: {value:?}");
+        }
+    }
+
+    mod sign {
+        use super::*;
+
+        struct FakeSigner {}
+
+        impl CoseKeyOwner for FakeSigner {
+            fn to_cose_key(&self) -> CoseKey {
+                CoseKey::default()
+            }
+        }
+
+        impl CoseSigner for FakeSigner {
+            fn sign(
+                &self,
+                _alg: CoseAlgorithm,
+                _data: &[u8],
+            ) -> Result<Vec<u8>, corim_rs::CorimError> {
+                Ok(vec![0x00, 0x01, 0x02, 0x04])
+            }
+        }
+
+        impl CoseVerifier for FakeSigner {
+            fn verify_signature(
+                &self,
+                _alg: CoseAlgorithm,
+                sig: &[u8],
+                _data: &[u8],
+            ) -> Result<(), corim_rs::CorimError> {
+                if sig == [0x00, 0x01, 0x02, 0x04] {
+                    Ok(())
+                } else {
+                    Err(corim_rs::CorimError::custom("error"))
+                }
+            }
+        }
+
+        #[test]
+        fn test_sign_and_verify() {
+            let coserv =
+                Coserv::from_cbor(fs::File::open("testdata/rv-results.cbor").unwrap()).unwrap();
+            let signer = FakeSigner {};
+
+            let signed = coserv.sign(&signer, CoseAlgorithm::ES384).unwrap();
+
+            let verifier = FakeSigner {};
+            let coserv_ex = Coserv::verify_and_extract(&verifier, signed.as_slice()).unwrap();
+
+            assert_eq!(coserv, coserv_ex);
         }
     }
 }

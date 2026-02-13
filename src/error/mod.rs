@@ -11,9 +11,9 @@ pub use discovery::*;
 #[derive(Error, Debug)]
 pub enum Error {
     #[error("{0}")]
-    Discovery(DiscoveryError),
+    Discovery(#[from] DiscoveryError),
     #[error("{0}")]
-    Coserv(CoservError),
+    Coserv(#[from] CoservError),
     #[error("Unclassified CoSERV error.")]
     Unknown,
 }
