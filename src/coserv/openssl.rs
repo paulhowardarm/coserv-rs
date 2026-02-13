@@ -142,8 +142,7 @@ hU80ttXzJ7waTpoeCJsPxG2hzMuUkHMOLrZxNpwxH004vyaHpF9TYTeXCQ==
         let signed_resp = resp.sign(&signer, CoseAlgorithm::ES256).unwrap();
 
         let verifier = OpensslVerifier::from_pem(PUB_PEM).unwrap();
-        let res =
-            Coserv::verify_and_extract(&verifier, CoseAlgorithm::ES256, signed_resp.as_slice());
+        let res = Coserv::verify_and_extract(&verifier, signed_resp.as_slice());
         assert!(res.is_ok());
     }
 
@@ -154,8 +153,7 @@ hU80ttXzJ7waTpoeCJsPxG2hzMuUkHMOLrZxNpwxH004vyaHpF9TYTeXCQ==
         let signed_resp = resp.sign(&signer, CoseAlgorithm::ES256).unwrap();
 
         let verifier = OpensslVerifier::from_jwk(PUB_JWK).unwrap();
-        let res =
-            Coserv::verify_and_extract(&verifier, CoseAlgorithm::ES256, signed_resp.as_slice());
+        let res = Coserv::verify_and_extract(&verifier, signed_resp.as_slice());
         assert!(res.is_ok());
     }
 }

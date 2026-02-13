@@ -208,7 +208,7 @@
 //!
 //!    let verifier = FakeSigner {};
 //!    let coserv =
-//!        Coserv::verify_and_extract(&verifier, CoseAlgorithm::ES256, signed_response.as_slice())
+//!        Coserv::verify_and_extract(&verifier, signed_response.as_slice())
 //!            .unwrap();
 //!}
 //! ```
@@ -263,7 +263,7 @@
 //!    // verify signature and extracting coserv
 //!    let verifier = OpensslVerifier::from_pem(pub_pem).unwrap();
 //!    let coserv =
-//!        Coserv::verify_and_extract(&verifier, CoseAlgorithm::ES256, signed_response.as_slice())
+//!        Coserv::verify_and_extract(&verifier, signed_response.as_slice())
 //!            .unwrap();
 //!}
 //! ```
@@ -322,7 +322,7 @@
 //!    // verify signature and extracting coserv
 //!    let verifier = OpensslVerifier::from_jwk(pub_jwk).unwrap();
 //!    let coserv =
-//!        Coserv::verify_and_extract(&verifier, CoseAlgorithm::ES384, signed_response.as_slice())
+//!        Coserv::verify_and_extract(&verifier, signed_response.as_slice())
 //!            .unwrap();
 //!}
 
@@ -446,7 +446,6 @@ impl<'a> Coserv<'a> {
     /// and creates a CoSERV object by deserializing the payload.
     pub fn verify_and_extract(
         verifier: &impl CoseVerifier,
-        cose_alg: CoseAlgorithm,
         data: &[u8],
     ) -> Result<Self, CoservError> {
         let sign1 = CoseSign1::from_tagged_slice(data).map_err(CoservError::custom)?;
@@ -463,11 +462,23 @@ impl<'a> Coserv<'a> {
             ))?
         }
 
-        if sign1.protected.header.alg.is_none() {
+        let Some(ref alg) = sign1.protected.header.alg else {
             Err(CoservError::VerificationError(
                 CoservError::RequiredFieldNotSet("alg".into(), "COSE header".into()).into(),
             ))?
-        }
+        };
+
+        let cose_alg = match alg {
+            coset::RegisteredLabelWithPrivate::Assigned(i) => {
+                Ok(CoseAlgorithm::try_from(i.to_i64())
+                    .map_err(|e| CoservError::VerificationError(e.into()))?)
+            }
+            coset::RegisteredLabelWithPrivate::PrivateUse(i) => Ok(CoseAlgorithm::try_from(*i)
+                .map_err(|e| CoservError::VerificationError(e.into()))?),
+            other => Err(CoservError::VerificationError(
+                CoservError::Custom(format!("unsupported algorithm in header: {other:?}")).into(),
+            )),
+        }?;
 
         if sign1.payload.is_none() {
             Err(CoservError::VerificationError(
@@ -790,9 +801,7 @@ mod tests {
             let signed = coserv.sign(&signer, CoseAlgorithm::ES384).unwrap();
 
             let verifier = FakeSigner {};
-            let coserv_ex =
-                Coserv::verify_and_extract(&verifier, CoseAlgorithm::ES384, signed.as_slice())
-                    .unwrap();
+            let coserv_ex = Coserv::verify_and_extract(&verifier, signed.as_slice()).unwrap();
 
             assert_eq!(coserv, coserv_ex);
         }
