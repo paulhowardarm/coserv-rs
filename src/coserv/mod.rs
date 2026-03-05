@@ -3,7 +3,7 @@
 //! Implementation of the CoSERV data model
 //!
 //! This module contains the implementation of the CoSERV data model
-//! as defined in <https://datatracker.ietf.org/doc/draft-ietf-rats-coserv/02/>.
+//! as defined in <https://datatracker.ietf.org/doc/draft-ietf-rats-coserv/05/>.
 //!
 //! Features include
 //! - Representation of CoSERV
